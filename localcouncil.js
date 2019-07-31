@@ -32,6 +32,9 @@ var docRefQuestion;
 //REsponse Reference
 var docRefResponseData;
 
+//Response answer Ref
+var docRefPlayerResponses;
+
 //=========================================================================================
 //=================================HTMLTEXTS/BUTTONS=======================================
 //=========================================================================================
@@ -180,6 +183,10 @@ var correctTriviaAnswer;
 //NEW MC ANSWER
 var currentMCAnswer;
 var correctMCAnswer;
+
+
+//CURRENT QUESTION
+var currentQuestion;
 
 //================================================================================================
 //==========================================SETUP ROOM/GAME==========================================
@@ -579,6 +586,9 @@ function checkForAllResponses(){
 
 
 //===================================RESPONSETOMCQUESTION==================================
+
+var buttonNumberArray;
+
 function getRMCQuestion(qNum){
     
     questionOutput.style.display = "block";
@@ -591,6 +601,8 @@ function getRMCQuestion(qNum){
     
     console.log("question name = " + qName);
     //var correctAnswer;
+    
+    currentQuestion = qName;
     
     //RESET RESPONSE # BEFORE GETTING QUESTION
     docRefResponseData.update({ responses: 0});
@@ -614,8 +626,11 @@ function getRMCQuestion(qNum){
     
     //allowing player to submit response
     
+    
     response1.style.display = "block";
     submitResponse.style.display = "block";
+    
+    
     
      //show playerButtons
     
@@ -633,30 +648,85 @@ function getRMCQuestion(qNum){
     
 }
 
+
 submitResponse.addEventListener("click", function(){
+    
+    //const questionToSave = questionOutput.innerText;
+    
+    //currentQuestion = questionToSave.toString();
     
     const responseToSave = response1.value;
     
     const buttonToSaveResponseTo = "buttonAdd" + localPlayerNumber;
     
-    document.getElementById(buttonToSaveResponseTo).innerText = responseToSave;
+    var playerNumString = localPlayerNumber.toString(); 
+    
+    //save response in database
+    docRefPlayerResponses = firestore.collection("responses").doc(playerRoom).collection(currentQuestion);
     
     
+    docRefPlayerResponses.doc(playerNumString).set({
+        response: responseToSave 
+    })
+    
+    
+    //document.getElementById(buttonToSaveResponseTo).innerText = responseToSave;
+    
+    console.log("calling check RMC responses!!");
     //place to increment the # of responses gotten
-    
-    getCreatedRMCQuestion();
+    setTimeout(checkRMCResponses, 1000);
+    //getCreatedRMCQuestion();
     
     
 
 })
 
-function getCreatedRMCQuestion(){
+function checkRMCResponses(){
+    
+    //track roomSize
+        docRefPlayerResponses.get().then(res => {
+            
+            var rss = res.size;
+            console.log("player responses = " + rss + "room size = " + roomSize);
+            
+            //set question up
+            setupRMCQuestion();
+            
+            
 
+            if(res.size == roomSize){
+                
+                console.log("THHEFUCKISTHEPAGENUMBER=====    " + currentPage);
+                //displaying RMCQuestion
+                //getCreatedRMCQuestion();
+                //currentPage++;
+                //nextPage();
+                //setTimeout(showRMCQuestion, 1000);
+                docRefRoomData.update({
+                        pageNumber: 7
+                    }).catch(function(error){
+                        console.error("got an error", error);
+                    });
+                
+            }
+            
+         });
+    
+    
+}
+
+function showRMCQuestion(){
+    //hide submit response and text field
+    response1.style.display = "none";
+    submitResponse.style.display = "none";
+    
+    
+      //show playerButtons
+    
     for(var i = 1; i<= roomSize; i++){
-        
         var buttonIDsToShow = "buttonAdd" + i;
         
-        console.log("button id lookin for = " + buttonIDsToShow);
+        //console.log("button id lookin for = " + buttonIDsToShow);
         
         document.getElementById(buttonIDsToShow).style.display = "block";
         
@@ -664,6 +734,89 @@ function getCreatedRMCQuestion(){
         
     }
     
+    firestore.collection("questions").doc("rmc").get().then(function(doc){
+            if(doc.exists){
+                const questionData = doc.data();
+                
+                currentMCAnswer = questionData.correctAnswer;
+    
+                buttonC.innerText = currentMCAnswer;
+                
+                
+                buttonC.style.display = "block";
+
+            }else{
+                console.log("no such");
+            }
+        }).catch(function(error){
+            console.log("error", error);
+        });
+        
+    
+}
+
+function setupRMCQuestion(){
+
+    for(var i = 1; i<= roomSize; i++){
+        
+        var buttonIDsToShow = "buttonAdd" + i;
+        
+        console.log("button id lookin for = " + buttonIDsToShow);
+        
+        console.log("WHAT IS I.. " + i);
+        
+        //document.getElementById(buttonIDsToShow).style.display = "block";
+//        
+//        var docRefPR = firestore.collection("responses").doc(playerRoom).collection(currentQuestion).doc(i.toString());
+//        
+//        docRefPR.get().then(function(doc){
+//            if(doc.exists){
+//                const responseData = doc.data();
+//                console.log("FUCKKKKKKKKKKKK");
+//                
+//                console.log("player # " + i + "'s response = " + responseData.response);
+//                
+//                document.getElementById(buttonIDsToShow).innerText = responseData.response;
+//
+//            }else{
+//                console.log("no such");
+//            }
+//        }).catch(function(error){
+//            console.log("error", error);
+//        });
+//        
+//        
+        //setandshow RMC
+        setShowRMC(i);
+        
+        //buttonIDsToShow.style.display = "block";
+        
+    }
+    
+}
+
+function setShowRMC(i){
+    
+        var docRefPR = firestore.collection("responses").doc(playerRoom).collection(currentQuestion).doc(i.toString());
+        
+        docRefPR.get().then(function(doc){
+            if(doc.exists){
+                const responseData = doc.data();
+                console.log("FUCKKKKKKKKKKKK");
+                
+                console.log("player # " + i + "'s response = " + responseData.response);
+                
+                var buttonIDsToShow = "buttonAdd" + i;
+                document.getElementById(buttonIDsToShow).innerText = responseData.response;
+
+            }else{
+                console.log("no such");
+            }
+        }).catch(function(error){
+            console.log("error", error);
+        });
+        
+        
 }
 
 
@@ -915,6 +1068,11 @@ function updateScreen(doc){
             changePlayerLives();
             
             getRMCQuestion("rmc");
+            
+        } 
+          else if(myData.pageNumber == 7){
+             
+           showRMCQuestion();
             
         } 
     }
